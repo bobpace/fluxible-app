@@ -39,25 +39,22 @@ describe('FluxibleContext', function () {
             actionContext = context.getActionContext();
         });
         describe ('#executeAction', function () {
-            it('should execute the action', function (done) {
+            it('should execute the action', function () {
                 var actionCalls = [];
-                var action = function (context, payload, callback) {
+                var action = function (context, payload) {
                     actionCalls.push({
                         context: context,
-                        payload: payload,
-                        callback: callback
+                        payload: payload
                     });
-                    callback();
+                    return Promise.resolve(true);
                 };
                 var payload = {};
-                var callback = function () {
+                return actionContext.executeAction(action, payload)
+                  .then(function() {
                     expect(actionCalls.length).to.equal(1);
                     expect(actionCalls[0].context).to.equal(actionContext);
                     expect(actionCalls[0].payload).to.equal(payload);
-                    expect(actionCalls[0].callback).to.equal(callback);
-                    done();
-                };
-                actionContext.executeAction(action, payload, callback);
+                  });
             });
         });
     });
@@ -67,29 +64,32 @@ describe('FluxibleContext', function () {
         beforeEach(function () {
             componentContext = context.getComponentContext();
         });
-        describe ('#executeAction', function () {
-            it('should execute the action', function (done) {
+        describe('#executeAction', function () {
+            it('should execute the action', function () {
                 var callback = function () {
                     throw new Error('This should not be called');
                 };
-                var action = function (actionContext, payload, cb) {
+                var action = function (actionContext, payload) {
                     expect(actionContext).to.equal(context.getActionContext());
                     expect(payload).to.equal(payload);
-                    expect(callback).to.not.equal(cb);
-                    done();
+                    return Promise.resolve(true);
                 };
                 var payload = {};
-                componentContext.executeAction(action, payload, callback);
+                return componentContext.executeAction(action, payload);
             });
-            it.skip('should throw if the action throws', function (done) {
-                var action = function (context, payload, cb) {
-                    foo.invalid();
+            it('should throw if the action throws', function () {
+                var error = new Error('boom');
+                var action = function (context, payload) {
+                  return Promise.reject(error);
                 };
                 var payload = {};
-                expect(function () {
-                    componentContext.executeAction(action, payload);
-                }).to.throw();
-                done();
+                return componentContext.executeAction(action, payload)
+                  .then(function() {
+                    throw new Error('should not make it here');
+                  })
+                  .catch(function(err) {
+                    expect(err).to.equal(error);
+                  });
             });
         });
     });
